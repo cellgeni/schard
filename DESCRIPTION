@@ -1,0 +1,21 @@
+Package: schard
+Title: Reticulate-free single cell object conversion
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Pavel",
+           family = "Mazin",
+           role = c("aut", "cre"),
+           email = "iaa.aka@gmail.com",
+           comment = c(ORCID = "0000-0001-9268-3352"))
+Description: What the package does (one paragraph).
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports:
+  Matrix,
+  rhdf5
+Suggests: 
+  SingleCellExperiment,
+  Seurat
+  
