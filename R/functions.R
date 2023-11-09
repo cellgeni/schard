@@ -147,6 +147,7 @@ h5ad2sce = function(filename){
   loadRequiredPackages('SingleCellExperiment')
   obsattr = rhdf5::h5readAttributes(filename,'obs')
   varattr = rhdf5::h5readAttributes(filename,'var')
+  xattr = rhdf5::h5readAttributes(filename,'X')
 
   a = rhdf5::H5Fopen(filename,flags = 'H5F_ACC_RDONLY')
 
@@ -158,7 +159,12 @@ h5ad2sce = function(filename){
     if(is.array(m)){
       mtx = m
     }else{
-      mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(var),nrow(obs)))
+      if(xattr$`encoding-type`=='csr_matrix'){
+        mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(var),nrow(obs)))
+      }else{
+        mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(var),nrow(obs)))
+        mtx = Matrix::t(mtx)
+      }
     }
     rownames(mtx) = rownames(var)
     colnames(mtx) = rownames(obs)
