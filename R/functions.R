@@ -162,7 +162,7 @@ h5ad2sce = function(filename){
       if(xattr$`encoding-type`=='csr_matrix'){
         mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(var),nrow(obs)))
       }else{
-        mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(var),nrow(obs)))
+        mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(obs),nrow(var)))
         mtx = Matrix::t(mtx)
       }
     }
