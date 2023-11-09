@@ -127,7 +127,7 @@ parseH5ADdataframe = function(collist,attr){
     }
   }
   rownames(res) = collist[[attr$`_index`]]
-  res[,c(attr$`_index`,attr$`column-order`)]
+  res[,c(attr$`_index`,attr$`column-order`),drop=FALSE]
 }
 
 #' Loads h5ad scanpy single cell file as SingleCellExperiment
@@ -178,3 +178,31 @@ h5ad2sce = function(filename){
   })
   sce
 }
+
+
+#' Title
+#'
+#' @param obj
+#' @param outFile
+#'
+#' @return
+#'
+#' @examples
+# cnt = Seurat::Read10X('~/nfs/projects/2307.omer/data.nfs/visium_hd/Visium_HD_hprostate_mbrain/mBrain/square_050um/filtered_feature_bc_matrix',gene.column=1)
+# obj = CreateSeuratObject(cnt)
+# genes = read.table('~/nfs/projects/2307.omer/data.nfs/visium_hd/Visium_HD_hprostate_mbrain/mBrain/square_050um/filtered_feature_bc_matrix/features.tsv.gz',row.names = 1)
+# obj@assays[[assay]]@meta.features = genes[rownames(obj),]
+seurat2h5ad = function(obj,outFile,assay = "RNA", main_layer = "data"){
+  stop("function is not finished yet")
+  if (!requireNamespace("Seurat")) {
+    stop("This function requires the 'Seurat' package.")
+  }
+
+  X = Seurat::GetAssayData(object = obj, assay = assay, slot = main_layer)
+  X = Matrix::t(X)
+  obs = obj@meta.data
+  var = Seurat::GetAssay(obj, assay = assay)@meta.features
+  SeuratDisk::WriteH5Group()
+
+}
+
