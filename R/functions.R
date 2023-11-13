@@ -1,23 +1,26 @@
-#' Loads scanpy h5ad file with multiple Visium data into list of Seurat object
+#' Loads scanpy h5ad file with Visium data into list of Seurat objects
+#'
+#' simplifies to single Seurat object if there is just one sample (see simplify parameter)
 #'
 #' @param filename character, path to h5ad file
 #' @param library_id_field name of adata.obs that specifies visium library. Function trys to guess it if set to NULL (default).
+#' @param simplify logical, whether return just seurat object (instead of list) if there is only one sample
 #'
 #' @return list of Seurat object
 #' @import Matrix
 #' @export
-h5ad2seurat_l_spatial = function (filename,library_id_field=NULL){
+h5ad2seurat_l_spatial = function (filename,library_id_field=NULL,simplify=TRUE){
   loadRequiredPackages('Seurat')
   obsattr = rhdf5::h5readAttributes(filename,'obs')
   varattr = rhdf5::h5readAttributes(filename,'var')
+  xattr = rhdf5::h5readAttributes(filename,'X')
 
   a = rhdf5::H5Fopen(filename,flags = 'H5F_ACC_RDONLY')
   tryCatch({
     obs = parseH5ADdataframe(a$obs,obsattr)
     var = parseH5ADdataframe(a$var,varattr)
 
-    m = a$X
-    mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(var),nrow(obs)))
+    mtx = pasreH5ADMatrix(a$X,xattr)
     rownames(mtx) = rownames(var)
     colnames(mtx) = rownames(obs)
 
@@ -28,6 +31,17 @@ h5ad2seurat_l_spatial = function (filename,library_id_field=NULL){
         if(all(obs[,obsf] %in% imglibs)){
           library_id_field = obsf
           break
+        }
+      }
+      # if there is not library field in obs we will only be able to proceed if the h5ad contains single samples:
+      if(is.null(library_id_field)){
+        if(length(imglibs) == 1){
+          library_id_field = 'library_id'
+          repeat{
+            if(!(library_id_field %in% colnames(obs))) break
+            library_id_field = paste0(library_id_field,'_')
+          }
+          obs[,library_id_field] = imglibs
         }
       }
     }
@@ -52,7 +66,11 @@ h5ad2seurat_l_spatial = function (filename,library_id_field=NULL){
       scale.factors <- a$uns$spatial[[lid]]$scalefactors
       # looks like in scanpy both images are hires actually (at least they were identical for example I tried)
       scale.factors$tissue_lowres_scalef = scale.factors$tissue_hires_scalef
-      tissue.positions = cbind(obs[f,c('in_tissue','array_row','array_col')], t(a$obsm$spatial[,f])[,2:1])
+      # coordinates can be either in spatial or in X_spatial
+      coor.names = 'spatial'
+      if(!(coor.names %in% names(a$obsm)))
+         coor.names = 'X_spatial'
+      tissue.positions = cbind(obs[f,c('in_tissue','array_row','array_col')], t(a$obsm[[coor.names]][,f])[,2:1])
       colnames(tissue.positions) = c("tissue", "row", "col", "imagerow", "imagecol")
 
       rownames(tissue.positions) = rownames(obs_)
@@ -78,6 +96,9 @@ h5ad2seurat_l_spatial = function (filename,library_id_field=NULL){
     rhdf5::H5Fclose(a)
     stop(e)
   })
+
+  if(simplify & length(res)==1)
+    res = res[[1]]
 
   rhdf5::H5Fclose(a)
   return(res)
@@ -130,6 +151,27 @@ parseH5ADdataframe = function(collist,attr){
   res[,c(attr$`_index`,attr$`column-order`),drop=FALSE]
 }
 
+
+#' Parse matrix from h5ad file
+#'
+#' @param m the matrix group, for example h5ad$X
+#' @param attr attibutes, for example from rhdf5::h5readAttributes(filename,'X')
+#'
+#' @return R matrix, dense or sparse - in dependence on input
+pasreH5ADMatrix = function(m,attr){
+  if(is.array(m)){
+    mtx = m
+  }else{
+    if(attr$`encoding-type`=='csr_matrix'){
+      mtx = Matrix::sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = rev(attr$shape))
+    }else{
+      mtx = Matrix::sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = attr$shape)
+      mtx = Matrix::t(mtx)
+    }
+  }
+  mtx
+}
+
 #' Loads h5ad scanpy single cell file as SingleCellExperiment
 #'
 #' functions exports X,obs,var and obsm
@@ -155,17 +197,7 @@ h5ad2sce = function(filename){
     obs = parseH5ADdataframe(a$obs,obsattr)
     var = parseH5ADdataframe(a$var,varattr)
 
-    m = a$X
-    if(is.array(m)){
-      mtx = m
-    }else{
-      if(xattr$`encoding-type`=='csr_matrix'){
-        mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(var),nrow(obs)))
-      }else{
-        mtx = sparseMatrix(i=m$indices+1, p=m$indptr,x = as.numeric(m$data),dims = c(nrow(obs),nrow(var)))
-        mtx = Matrix::t(mtx)
-      }
-    }
+    mtx = pasreH5ADMatrix(a$X,xattr)
     rownames(mtx) = rownames(var)
     colnames(mtx) = rownames(obs)
 
@@ -175,7 +207,8 @@ h5ad2sce = function(filename){
     )
     # reduced dims
     for(n in names(a$obsm)){
-      reducedDim(sce,n) = t(a$obsm[[n]])
+      if(is.array(a$obsm[[n]]))
+        reducedDim(sce,n) = t(a$obsm[[n]])
     }
     rhdf5::H5Fclose(a)
   },error=function(e){
