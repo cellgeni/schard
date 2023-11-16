@@ -14,8 +14,8 @@ h5ad2list = function(filename,load.raw='no'){
   a = rhdf5::H5Fopen(filename,flags = 'H5F_ACC_RDONLY')
 
   tryCatch({
-    obs = parseH5ADdataframe(a,'obs')
-    var = parseH5ADdataframe(a,'var')
+    obs = h5ad2data.frame(a,'obs')
+    var = h5ad2data.frame(a,'var')
     raw = list()
     X = NULL
 
@@ -27,7 +27,7 @@ h5ad2list = function(filename,load.raw='no'){
     if(load.raw %in% c('both','replace')){
       if(rhdf5::H5Lexists(a,'raw/X')){
         raw$X = pasreH5ADMatrix(a,'raw/X')
-        raw$var = parseH5ADdataframe(a,'raw/var')
+        raw$var = h5ad2data.frame(a,'raw/var')
         rownames(raw$X) = rownames(raw$var)
         colnames(raw$X) = rownames(obs)
       }else{
