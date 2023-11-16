@@ -4,10 +4,12 @@
 \alias{h5ad2sce}
 \title{Loads h5ad scanpy single cell file as SingleCellExperiment}
 \usage{
-h5ad2sce(filename)
+h5ad2sce(filename, use.raw = FALSE)
 }
 \arguments{
 \item{filename}{path to h5ad file}
+
+\item{use.raw}{logical, whether to attempt to get data from adata.raw. Throws warning (not exception!) if adata.raw is not present and proceeds with adata.X.}
 }
 \value{
 SingleCellExperiment object
