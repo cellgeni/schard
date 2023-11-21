@@ -30,13 +30,12 @@ ba16.sce = schard::h5ad2sce('ba16.h5ad')
 snhx = schard::h5ad2seurat('sn.heart.h5ad')
 # load all visium samples as single Seurat object
 visx = schard::h5ad2seurat_spatial('vis.heart.h5ad')
-# or load as list of visium objects
+# or load as list of Seurat objects (per slide
 visl = schard::h5ad2seurat_spatial('vis.heart.h5ad',simplify = FALSE)
 # or load raw counts
 snhr = schard::h5ad2seurat('sn.heart.h5ad',use.raw = TRUE)
 # raw counts for visium
 visr = schard::h5ad2seurat_spatial('vis.heart.h5ad',use.raw = TRUE)
-
 
 # check that it works
 Seurat::SpatialPlot(visx,features = 'total_counts')
@@ -46,7 +45,7 @@ plot(colSums(visx),colSums(visr),pch=16) # raw counts are different from normoli
 Seurat::DimPlot(snhx,group.by = 'cell_state') # the name of reduction is 'Xumap_' (autotranslated from scanpy to Seurat), somehow DimPlot manages to find it, but probably safier to specify it manually with reduction = 'Xumap_'
 ```
 
-There is not need to load whole object if you only need cell metadata:
+There is no need to load whole object if you only need cell metadata:
 ```R
 obs = schard::h5ad2data.frame('sn.heart.h5ad','obs')
 # one can load umap in the same way.
