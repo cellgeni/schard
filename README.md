@@ -4,7 +4,7 @@ The package is based on rhdf5 for h5ad manipulation and is pure R (that is retic
 
 # Installation
 schard depends on some Bioconductor packages that should be installed manually:
-```
+```R
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
@@ -12,13 +12,13 @@ BiocManager::install(c("rhdf5","Seurat", "SingleCellExperiment"))
 ```
 
 Then install schard from github
-```
+```R
 devtools::install_github("cellgeni/schard")
 ```
 
 # Usage
 Download some public h5ad and load them to R:
-```
+```R
 download.file('https://covid19.cog.sanger.ac.uk/baron16.processed.h5ad','ba16.h5ad') # old data from 2016
 # visium and single nuclei datasets from cziscience: https://cellxgene.cziscience.com/collections/3116d060-0a8e-4767-99bb-e866badea1ed
 download.file('https://datasets.cellxgene.cziscience.com/c5ac5c36-f60c-4680-8018-2d6cb65c0a37.h5ad','vis.heart.h5ad')
@@ -47,7 +47,7 @@ Seurat::DimPlot(snhx,group.by = 'cell_state') # the name of reduction is 'Xumap_
 ```
 
 There is not need to load whole object if you only need cell metadata:
-```
+```R
 obs = schard::h5ad2data.frame('sn.heart.h5ad','obs')
 # one can load umap in the same way.
 # not sure about the name? lets see into h5ad:
