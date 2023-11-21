@@ -2,14 +2,16 @@
 % Please edit documentation in R/functions.R
 \name{h5ad2sce}
 \alias{h5ad2sce}
-\title{Loads h5ad scanpy single cell file as SingleCellExperiment}
+\title{Loads h5ad as SingleCellExperiment object}
 \usage{
-h5ad2sce(filename, use.raw = FALSE)
+h5ad2sce(filename, use.raw = FALSE, load.obsm = TRUE)
 }
 \arguments{
 \item{filename}{path to h5ad file}
 
 \item{use.raw}{logical, whether to attempt to get data from adata.raw. Throws warning (not exception!) if adata.raw is not present and proceeds with adata.X.}
+
+\item{load.obsm}{logical, whether to load adata.obsm. All matrix-like objects from there will be added as reducedDim to the output object.}
 }
 \value{
 SingleCellExperiment object

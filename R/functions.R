@@ -1,67 +1,52 @@
-#' Loads h5ad file as ordinary R list
+#' Loads main parts of h5ad file as ordinary R list
 #'
 #' @param filename path to h5ad file
-#' @param load.raw character, either 'no' (do not load raw), 'both' (load both adata.raw nad adata.X), or 'replace' (load raw only if exists)
+#' @param load.raw logical, whether to load adata.raw.X instead of adata.X
+#' @param load.obsm logical, whether to load adata.obsm.
 #'
 #' @return list with following elements:
 #'  obs - data.frame
 #'  var - data.frame
 #'  X - matrix (dense or sparse - as it was in X)
-#'  reducedDim - list of matrices with reduced dimmensions
-#'  raw - list, eitehr empty (if load.raw is false or if raw is not present)
+#'  obsm - list of matrices from obsm (presumably reduced dimensions)
 #' @export
-h5ad2list = function(filename,load.raw='no'){
-  a = rhdf5::H5Fopen(filename,flags = 'H5F_ACC_RDONLY')
+h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE){
+  h5struct = rhdf5::h5ls(filename)
+  res = list()
+  res$obs = h5ad2data.frame(filename,'obs')
+  if(use.raw){
+    if(!any(h5struct$group=='/raw/X')){
+      stop(paste0('There is not raw slot in "',filename,'" please set "use.raw" to FALSE'))
+    }
+    res$X = h5ad2Matrix(filename,'raw/X')
+    res$var = h5ad2data.frame(filename,'raw/var')
+  }else{
+    res$X = h5ad2Matrix(filename,'X')
+    res$var = h5ad2data.frame(filename,'var')
+  }
+  rownames(res$X) = rownames(res$var)
+  colnames(res$X) = rownames(res$obs)
 
-  tryCatch({
-    obs = h5ad2data.frame(a,'obs')
-    var = h5ad2data.frame(a,'var')
-    raw = list()
-    X = NULL
-
-    if(load.raw %in% c('no','both') || !rhdf5::H5Lexists(a,'raw/X')){
-      X = pasreH5ADMatrix(a,'X')
-      rownames(X) = rownames(var)
-      colnames(X) = rownames(obs)
+  res$obsm = list()
+  if(load.obsm){
+    for(n in h5struct$name[h5struct$group=='/obsm']){
+      obsm = t(h5ad2Matrix(filename,paste0('obsm/',n))) # they are transposed for some reason...
+      if(is.array(obsm))
+        res$obsm[[n]] = obsm
     }
-    if(load.raw %in% c('both','replace')){
-      if(rhdf5::H5Lexists(a,'raw/X')){
-        raw$X = pasreH5ADMatrix(a,'raw/X')
-        raw$var = h5ad2data.frame(a,'raw/var')
-        rownames(raw$X) = rownames(raw$var)
-        colnames(raw$X) = rownames(obs)
-      }else{
-        warning('adata.raw is not found, will use adata.X instead')
-      }
-    }
-    if(load.raw == 'replace'){
-      X = raw$X
-      var = raw$var
-      raw = list()
-    }
-    # reduced dims
-    reducedDim = list()
-    for(n in names(a$obsm)){
-      if(is.array(a$obsm[[n]]))
-        reducedDim[[n]] = t(a$obsm[[n]])
-    }
-    rhdf5::H5Fclose(a)
-  },error=function(e){
-    rhdf5::H5Fclose(a)
-    stop(e)
-  })
-  list(obs=obs,var=var,X=X,reducedDim = reducedDim,
-       raw=raw)
+  }
+  res
 }
 
 
-#' Loads h5ad scanpy single cell file as SingleCellExperiment
+#' Loads h5ad as SingleCellExperiment object
 #'
 #' functions exports X,obs,var and obsm
 #' it is very experimental and comes with no warranty
 #'
 #' @param filename path to h5ad file
 #' @param use.raw logical, whether to attempt to get data from adata.raw. Throws warning (not exception!) if adata.raw is not present and proceeds with adata.X.
+#' @param load.obsm logical, whether to load adata.obsm. All matrix-like objects from there will be added as reducedDim to the output object.
 #'
 #' @return SingleCellExperiment object
 #' @export
@@ -69,143 +54,172 @@ h5ad2list = function(filename,load.raw='no'){
 #' @import Matrix
 #' @examples
 #' sce = h5ad2sce('adata.h5ad')
-h5ad2sce = function(filename,use.raw=FALSE){
+h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE){
   loadRequiredPackages('SingleCellExperiment')
-  data = h5ad2list(filename,load.raw = ifelse(use.raw,'replace','no'))
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm=load.obsm)
 
   sce = SingleCellExperiment(list(X=data$X),
                              colData=data$obs,
                              rowData=data$var
   )
   # reduced dims
-  for(n in names(data$reducedDim)){
-    reducedDim(sce,n) = data$reducedDim[[n]]
+  for(n in names(data$obsm)){
+    reducedDim(sce,n) = data$obsm[[n]]
   }
   sce
 }
 
-#' Loads scanpy h5ad file with Visium data into list of Seurat objects
+#' Loads h5ad as Seurat object
 #'
-#' simplifies to single Seurat object if there is just one sample (see simplify parameter)
+#' For non-spatial data only, use h5ad2seurat_spatial for Visium
+#'
+#' @param filename path to h5ad file
+#' @param use.raw logical, whether to use adata.raw instead of adata.X
+#' @param load.obsm logical, whether to load adata.obsm. All matrix-like objects from there will be added as DimReduc to the output object with names coerced to Seurat style (that is not underscores in the middle, single underscore at the end).
+#' @param assay what assay to put data it (RNA by default)
+#'
+#' @return Seurat object
+#' @export
+#'
+#' @import Matrix
+#' @examples
+#' seu = h5ad2seurat('adata.h5ad')
+h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA'){
+  loadRequiredPackages('Seurat')
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm)
+
+  seu = CreateSeuratObject(counts = data$X,assay = assay)
+  seu@meta.data = data$obs
+  seu@assays[[assay]]@meta.features = data$var
+
+  # reduced dims
+  # move spatial to X_spatial (that is Xspatial_ in Seurat) to a) do not interact with Seurat[['spatial_']] b) consistency between adata versions
+  names(data$obsm)[names(data$obsm) == 'spatial'] = 'X_spatial'
+
+  for(n in names(data$obsm)){
+    nn = paste0(gsub('_','',n),'_') # Seurat naming requirements
+    colnames(data$obsm[[n]]) = paste0(nn,1:ncol(data$obsm[[n]])) # Seurat wants to have colnames
+    rownames(data$obsm[[n]]) = rownames(data$obs)
+    seu[[nn]] <- CreateDimReducObject(embeddings = data$obsm[[n]], key = nn, assay = assay)
+  }
+  seu
+}
+
+
+#' Loads scanpy h5ad file with Visium data into Seurat object
+#'
 #'
 #' @param filename character, path to h5ad file
-#' @param library_id_field name of adata.obs that specifies visium library. Function trys to guess it if set to NULL (default).
-#' @param simplify logical, whether return just seurat object (instead of list) if there is only one sample
 #' @param use.raw logical, whether to attempt to get data from adata.raw. Throws warning (not exception!) if adata.raw is not present and proceeds with adata.X.
+#' @param load.obsm logical, whether to load adata.obsm. All matrix-like objects from there will be added as DimReduc to the output object with names coerced to Seurat style (that is not underscores in the middle, single underscore at the end).
+#' @param simplify logical, whether to merge loaded samples into single object, return list otherwise.
+#' @param img.res which of lowres' or 'hires' image to be loaded
 #'
 #' @return list of Seurat object
 #' @import Matrix
 #' @export
-h5ad2seurat_l_spatial = function (filename,library_id_field=NULL,simplify=TRUE,use.raw=FALSE){
+#' @examples
+#' vs = h5ad2seurat_spatial('adata.h5ad')
+h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TRUE,img.res = 'lowres'){
   loadRequiredPackages('Seurat')
-  data = h5ad2list(filename,load.raw = ifelse(use.raw,'replace','no'))
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm = TRUE) # load obsm in any case - we need spatial info
+  images = h5ad2images(filename)
+  results = list()
 
-  a = rhdf5::H5Fopen(filename,flags = 'H5F_ACC_RDONLY')
-  tryCatch({
-    obs = data$obs
-    var = data$var
-    X = data$X
-
-    # find column in obs all values of each has spatial data in a$uns$spatial
-    if(is.null(library_id_field)){
-      imglibs = names(a$uns$spatial)
-      for(obsf in colnames(obs)){
-        if(all(obs[,obsf] %in% imglibs)){
-          library_id_field = obsf
-          break
-        }
+  # find column all values of each has images
+  library_id_field = NULL
+  for(col in colnames(data$obs)){
+    if(all(data$obs[,col] %in% names(images))){
+      library_id_field = col
+      break
+    }
+  }
+  # if there is not library field in obs we will only be able to proceed if the h5ad contains single samples:
+  if(is.null(library_id_field)){
+    if(length(images) == 1){
+      # generate filed name that is not already in use
+      library_id_field = 'library_id'
+      repeat{
+        if(!(library_id_field %in% colnames(data$obs))) break
+        library_id_field = paste0(library_id_field,'_')
       }
-      # if there is not library field in obs we will only be able to proceed if the h5ad contains single samples:
-      if(is.null(library_id_field)){
-        if(length(imglibs) == 1){
-          # generate filed name that is not already in use
-          library_id_field = 'library_id'
-          repeat{
-            if(!(library_id_field %in% colnames(obs))) break
-            library_id_field = paste0(library_id_field,'_')
-          }
-          obs[,library_id_field] = imglibs
-        }else{
-          stop("The h5ad seems to contain multiple visium samples but library is not specified correctly in adata.obs. There should be a column that matches keys is adata.uns.spatial.")
-        }
+      data$obs[,library_id_field] = names(images)
+    }else{
+      stop("The h5ad seems to contain multiple visium samples but library is not specified correctly in adata.obs. There should be a column that matches keys is adata.uns.spatial.")
+    }
+  }
+  # rename spatial to X_spatial
+  names(data$obsm)[names(data$obsm)=='spatial'] = 'X_spatial'
+
+  # create per sample Seurats
+  for(lid in unique(data$obs[,library_id_field])){
+    f = data$obs[,library_id_field] == lid
+    obs_ = data$obs[f,]
+    x_spatial_ = data$obsm$X_spatial[f,2:1] # manually discovered that coordinates are transposed
+
+    seu = CreateSeuratObject(counts = data$X[,rownames(obs_)], assay = 'Spatial')
+    seu@meta.data = cbind(seu@meta.data,obs_)
+    seu@assays$Spatial@meta.features = data$var
+
+    # add dim reductions (if any)
+    if(load.obsm){
+      for(n in setdiff(names(data$obsm),'X_spatial')){
+        nn = paste0(gsub('_','',n),'_') # Seurat naming requirements
+        obsm_ = data$obsm[[n]][f,]
+        colnames(obsm_) = paste0(nn,1:ncol(obsm_)) # Seurat wants to have colnames
+        rownames(obsm_) = rownames(obs_)
+        seu[[nn]] = CreateDimReducObject(embeddings = obsm_, key = nn, assay = 'Spatial')
       }
     }
-    # load images and assemble Seurat objects
-    # coordinates can be either in spatial or in X_spatial
-    coor.names = 'spatial'
-    if(!(coor.names %in% names(a$obsm)))
-      coor.names = 'X_spatial'
-    res = list()
-    for(lid in unique(obs[[library_id_field]])){
-      # subset obs
-      f = obs[[library_id_field]] == lid
-      obs_ = obs[f,]
-      if(!is.null(obs_$barcode)){
-        rownames(obs_) = obs_$barcode
-      }
-      # subset counts
-      X_ = X[,which(f)]
-      colnames(X_) = rownames(obs_)
-      object = CreateSeuratObject(counts = X_, assay = 'Spatial')
 
-      # extract image
-      image = loadImageFromH5ad(a,lid,obs_,t(a$obsm[[coor.names]][,f])[,2:1])
+    # prepare image
+    # set to mock if mesh coordinaates are not in obs
+    tissue.positions = obs_
+    if(is.null(tissue.positions$in_tissue)) tissue.positions$in_tissue = 1
+    if(is.null(tissue.positions$array_row)) tissue.positions$array_row = 0
+    if(is.null(tissue.positions$array_col)) tissue.positions$array_col = 0
 
-      image = image[Cells(x = object)]
-      DefaultAssay(object = image) = 'Spatial'
-      object[['slice1']] = image
+    tissue.positions = cbind(tissue.positions[,c('in_tissue','array_row','array_col')], x_spatial_)
+    colnames(tissue.positions) = c("tissue", "row", "col", "imagerow", "imagecol")
+    rownames(tissue.positions) = rownames(obs_)
 
-      object@meta.data = cbind(object@meta.data,obs_)
-      rownames(object@meta.data) = rownames(obs_)
-
-      object@assays$Spatial@meta.features = var
-      res[[lid]] = object
+    scale.factors = images[[lid]]$scale.factors
+    # if specified resolution is not in h5ad, try another
+    if(!(img.res %in% names(images[[lid]]))){
+      warning(paste0("'",img.res,"' is not avaliable, trying another resolution",))
+      img.res = setdiff(c('hires','lowres'),img.res)
     }
-  },error=function(e){
-    rhdf5::H5Fclose(a)
-    stop(e)
-  })
+    if(!(img.res %in% names(images[[lid]]))){
+      stop('No image avaliable in h5ad')
+    }
 
-  if(simplify & length(res)==1)
-    res = res[[1]]
+    if(img.res == 'hires'){
+      scale.factors$tissue_lowres_scalef = scale.factors$tissue_hires_scalef
+    }
 
-  rhdf5::H5Fclose(a)
-  return(res)
+    image = images[[lid]][[img.res]]
+
+    # just copied from Seurat::Read10X_Image
+    unnormalized.radius = scale.factors$fiducial_diameter_fullres * scale.factors$tissue_lowres_scalef
+    spot.radius = unnormalized.radius/max(dim(x = image))
+    image = new(Class = "VisiumV1", image = image, scale.factors = scalefactors(spot = scale.factors$tissue_hires_scalef,
+                                                                                fiducial = scale.factors$fiducial_diameter_fullres,
+                                                                                hires = scale.factors$tissue_hires_scalef,
+                                                                                scale.factors$tissue_lowres_scalef),
+                coordinates = tissue.positions, spot.radius = spot.radius)
+
+    image = image[Cells(x = seu)]
+    DefaultAssay(object = image) = 'Spatial'
+    seu[[lid]] = image
+    results[[lid]] = seu
+  }
+  if(simplify){
+    if(length(results)==1)
+      results = results[[1]]
+    else{
+      results = merge(results[[1]],results[-1])
+    }
+  }
+  results
 }
 
-
-#' Loads Seurat VisiumV1 object from visium h5ad
-#'
-#' there is some magic in this function, I'm not sure why and how it works (but it works).
-#' the function is not supposed to be used for its own, only from h5ad2seurat_l_spatial
-#'
-#' @param a H5IdComponent (for whole h5ad file)
-#' @param lid library_id, the key in a.uns.spatia
-#' @param obs_ subset of adata.obs for this particular object
-#'
-#' @return VisiumV1 object
-loadImageFromH5ad = function(a,lid,obs_,obsm_){
-  # extract image
-  ires = 'hires'
-  if(!(ires %in% names(a$uns$spatial[[lid]]$images)))
-    ires = 'lowres'
-  image <- aperm(a$uns$spatial[[lid]]$images[[ires]],3:1)
-
-  scale.factors <- a$uns$spatial[[lid]]$scalefactors
-  # looks like in scanpy both images are hires actually (at least they were identical for example I tried)
-  scale.factors$tissue_lowres_scalef = scale.factors$tissue_hires_scalef
-
-  tissue.positions = cbind(obs_[,c('in_tissue','array_row','array_col')], obsm_)
-  colnames(tissue.positions) = c("tissue", "row", "col", "imagerow", "imagecol")
-
-  rownames(tissue.positions) = rownames(obs_)
-
-  unnormalized.radius = scale.factors$fiducial_diameter_fullres * scale.factors$tissue_lowres_scalef
-  spot.radius = unnormalized.radius/max(dim(x = image))
-  image = new(Class = "VisiumV1", image = image, scale.factors = scalefactors(spot = scale.factors$tissue_hires_scalef,
-                                                                              fiducial = scale.factors$fiducial_diameter_fullres,
-                                                                              hires = scale.factors$tissue_hires_scalef,
-                                                                              scale.factors$tissue_lowres_scalef),
-              coordinates = tissue.positions, spot.radius = spot.radius)
-  image
-}
