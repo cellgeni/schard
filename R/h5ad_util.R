@@ -37,19 +37,23 @@ h5ad2data.frame = function(filename,name){
 
   # first way to store factors
   for(fn in names(collist[['__categories']])){
-    res[[fn]] = as.vector(collist[['__categories']][[fn]][res[[fn]]+1])
+    codes = res[[fn]]+1
+    codes[codes==0] = NA
+    res[[fn]] = as.vector(collist[['__categories']][[fn]][codes])
   }
   # another way to store factors
   for(fn in names(ll)[ll==2 & ll != max(ll)]){
     if(all(names(collist[[fn]]) %in% c("categories","codes"))){
-      res[[fn]] = as.vector(collist[[fn]]$categories[collist[[fn]]$codes+1])
+      codes = collist[[fn]]$codes+1
+      codes[codes==0] = NA
+      res[[fn]] = as.vector(collist[[fn]]$categories[codes])
     }
   }
   if('_index' %in% names(attr))
     rownames(res) = collist[[attr$`_index`]]
   if('index' %in% colnames(res))
     rownames(res) = res$index
-  if(all(c('_index','column-order') %in% colnames(res)))
+  if(all(c('_index',attr$`column-order`) %in% colnames(res)))
     res = res[,c(attr$`_index`,attr$`column-order`),drop=FALSE]
   res
 }
