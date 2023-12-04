@@ -35,13 +35,13 @@ h5ad2data.frame = function(filename,name){
   ll = sapply(collist,length)
   res = as.data.frame(collist[ll==max(ll)],check.names=FALSE)
 
-  # first way to store factors
+  # first way to store factors (all levels are in collist[['__categories']])
   for(fn in names(collist[['__categories']])){
     codes = res[[fn]]+1
     codes[codes==0] = NA
     res[[fn]] = as.vector(collist[['__categories']][[fn]][codes])
   }
-  # another way to store factors
+  # another way to store factors (each factor is 2-item list)
   for(fn in names(ll)[ll==2 & ll != max(ll)]){
     if(all(names(collist[[fn]]) %in% c("categories","codes"))){
       codes = collist[[fn]]$codes+1
