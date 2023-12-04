@@ -15,7 +15,7 @@ RoxygenNote: 7.2.3
 Imports:
   Matrix,
 Remotes:
-  bioc::SingleCellExperiment,
-  bioc::Seurat,
-  bioc::rhdf5
+  bioc::3.3/SingleCellExperiment,
+  bioc::3.3/Seurat,
+  bioc::3.3/rhdf5
   
