@@ -18,7 +18,5 @@ Imports:
   Seurat,
   rhdf5
 Remotes:
-  bioc::SingleCellExperiment,
-  bioc::Seurat,
-  bioc::rhdf5
+  bioc::SingleCellExperiment,Seurat,rhdf5
   
