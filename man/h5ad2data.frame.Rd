@@ -4,12 +4,14 @@
 \alias{h5ad2data.frame}
 \title{Extracts data.frame from h5ad file}
 \usage{
-h5ad2data.frame(filename, name)
+h5ad2data.frame(filename, name, keep.rownames.as.column = TRUE)
 }
 \arguments{
 \item{filename}{file name or H5IdComponent to read data.frame from}
 
 \item{name}{name of group that contains data.frame to be loaded}
+
+\item{keep.rownames.as.column}{whether to keep rownames (index) as column in output. TRUE by default}
 }
 \value{
 a data.frame

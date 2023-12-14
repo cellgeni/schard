@@ -9,12 +9,13 @@ loadRequiredPackages = function(pkgs){
 #'
 #' @param filename file name or H5IdComponent to read data.frame from
 #' @param name name of group that contains data.frame to be loaded
+#' @param keep.rownames.as.column whether to keep rownames (index) as column in output. TRUE by default
 #'
 #' @return a data.frame
 #' @export
 #' @examples
 #' obs = h5ad2data.frame('adata.h5ad','obs')
-h5ad2data.frame = function(filename,name){
+h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
   collist = rhdf5::h5read(filename,name,read.attributes = TRUE)
   attr = attributes(collist)
   # slashes in names leads to nested structure, lets fix it
@@ -53,8 +54,13 @@ h5ad2data.frame = function(filename,name){
     rownames(res) = collist[[attr$`_index`]]
   if('index' %in% colnames(res))
     rownames(res) = res$index
-  if(all(c('_index',attr$`column-order`) %in% colnames(res)))
-    res = res[,c(attr$`_index`,attr$`column-order`),drop=FALSE]
+  if(all(c('_index',attr$`column-order`) %in% colnames(res))){
+    if(keep.rownames.as.column)
+      ord = c(attr$`_index`,attr$`column-order`)
+    else
+      ord = c(attr$`column-order`)
+    res = res[,ord,drop=FALSE]
+  }
   res
 }
 
@@ -74,7 +80,7 @@ h5ad2Matrix = function(filename,name){
   attr = rhdf5::h5readAttributes(filename,name)
   # load as dataframe if it appers to be a dataframe, but then convert to matrix as the matrix was requested
   if(!is.null(attr$`encoding-type`) & attr$`encoding-type` =='dataframe'){
-    mtx = h5ad2data.frame(filename,name)
+    mtx = h5ad2data.frame(filename,name,keep.rownames.as.column=FALSE)
     mtx = as.matrix(mtx)
     return(mtx)
   }
