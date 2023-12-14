@@ -50,15 +50,21 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
       res[[fn]] = as.vector(collist[[fn]]$categories[codes])
     }
   }
-  if('_index' %in% names(attr))
-    rownames(res) = collist[[attr$`_index`]]
+
+  index.col = NULL
   if('index' %in% colnames(res))
-    rownames(res) = res$index
-  if(all(c('_index',attr$`column-order`) %in% colnames(res))){
-    if(keep.rownames.as.column)
-      ord = c(attr$`_index`,attr$`column-order`)
-    else
-      ord = c(attr$`column-order`)
+    index.col = 'index'
+  if('_index' %in% names(attr) && attr$`_index` %in% colnames(res))
+    index.col = attr$`_index`
+
+  if(!is.null(index.col))
+    rownames(res) = res[,index.col]
+
+  ord =NULL
+  if(!is.null(attr$`column-order`) & all(attr$`column-order` %in% colnames(res))){
+    ord = attr$`column-order`
+    if(keep.rownames.as.column && !is.null(index.col))
+      ord = c(index.col,ord)
     res = res[,ord,drop=FALSE]
   }
   res
