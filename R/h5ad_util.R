@@ -85,7 +85,7 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
 h5ad2Matrix = function(filename,name){
   attr = rhdf5::h5readAttributes(filename,name)
   # load as dataframe if it appers to be a dataframe, but then convert to matrix as the matrix was requested
-  if(!is.null(attr$`encoding-type`) & attr$`encoding-type` =='dataframe'){
+  if(!is.null(attr$`encoding-type`) && attr$`encoding-type` =='dataframe'){
     mtx = h5ad2data.frame(filename,name,keep.rownames.as.column=FALSE)
     mtx = as.matrix(mtx)
     return(mtx)
