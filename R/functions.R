@@ -32,7 +32,7 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE){
     for(n in h5struct$name[h5struct$group=='/obsm']){
       obsm = h5ad2Matrix(filename,paste0('obsm/',n)) # they are transposed for some reason...
       if(is.array(obsm)){
-        if(nrow(obsm) != nrow(obs))
+        if(nrow(obsm) != nrow(res$obs))
           obsm = t(obsm)
         res$obsm[[n]] = obsm
       }
