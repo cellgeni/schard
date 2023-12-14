@@ -3,15 +3,7 @@ This package allows one to load scanpy h5ad into R as list, SingleCellExperiment
 The package is based on rhdf5 for h5ad manipulation and is pure R (that is reticulate-free).
 
 # Installation
-schard depends on some Bioconductor packages that should be installed manually:
-```R
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-
-BiocManager::install(c("rhdf5","Seurat", "SingleCellExperiment"))
-```
-
-Then install schard from github
+schard can be installed from github
 ```R
 devtools::install_github("cellgeni/schard")
 ```

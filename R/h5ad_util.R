@@ -71,8 +71,14 @@ h5ad2data.frame = function(filename,name){
 #' @examples
 #' obs = h5ad2data.frame('adata.h5ad','X')
 h5ad2Matrix = function(filename,name){
-  m = rhdf5::h5read(filename,name,read.attributes = TRUE)
   attr = attributes(m)
+  # load as dataframe if it appers to be a dataframe, but then convert to matrix as the matrix was requested
+  if(!is.null(attr$`encoding-type`) & attr$`encoding-type` =='dataframe'){
+    mtx = h5ad2data.frame(filename,name)
+    mtx = as.matrix(mtx)
+    return(mtx)
+  }
+  m = rhdf5::h5read(filename,name,read.attributes = TRUE)
   format = attr$`encoding-type`
   if(is.null(format))
     format = attr$h5sparse_format
