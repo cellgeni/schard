@@ -3,6 +3,7 @@
 #' @param filename path to h5ad file
 #' @param load.raw logical, whether to load adata.raw.X instead of adata.X
 #' @param load.obsm logical, whether to load adata.obsm.
+#' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
 #'
 #' @return list with following elements:
 #'  obs - data.frame
@@ -10,19 +11,25 @@
 #'  X - matrix (dense or sparse - as it was in X)
 #'  obsm - list of matrices from obsm (presumably reduced dimensions)
 #' @export
-h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE){
+h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE){
   h5struct = rhdf5::h5ls(filename)
   res = list()
   res$obs = h5ad2data.frame(filename,'obs')
+
   if(use.raw){
     if(!any(h5struct$group=='/raw/X')){
       stop(paste0('There is not raw slot in "',filename,'" please set "use.raw" to FALSE'))
     }
-    res$X = h5ad2Matrix(filename,'raw/X')
     res$var = h5ad2data.frame(filename,'raw/var')
+    expname = 'raw/X'
   }else{
-    res$X = h5ad2Matrix(filename,'X')
     res$var = h5ad2data.frame(filename,'var')
+    expname = 'X'
+  }
+  if(load.X){
+    res$X = h5ad2Matrix(filename,expname)
+  }else{
+    res$X = Matrix::sparseMatrix(i=integer(0),p=0L,x=numeric(0),dims=c(nrow(res$var),nrow(res$obs)))
   }
   rownames(res$X) = rownames(res$var)
   colnames(res$X) = rownames(res$obs)
@@ -50,6 +57,7 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE){
 #' @param filename path to h5ad file
 #' @param use.raw logical, whether to attempt to get data from adata.raw. Throws warning (not exception!) if adata.raw is not present and proceeds with adata.X.
 #' @param load.obsm logical, whether to load adata.obsm. All matrix-like objects from there will be added as reducedDim to the output object.
+#' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
 #'
 #' @return SingleCellExperiment object
 #' @export
@@ -57,9 +65,9 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE){
 #' @import Matrix
 #' @examples
 #' sce = h5ad2sce('adata.h5ad')
-h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE){
+h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE,load.X=TRUE){
   loadRequiredPackages('SingleCellExperiment')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm=load.obsm)
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm=load.obsm,load.X=load.X)
 
   sce = SingleCellExperiment(list(X=data$X),
                              colData=data$obs,
@@ -80,6 +88,7 @@ h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE){
 #' @param use.raw logical, whether to use adata.raw instead of adata.X
 #' @param load.obsm logical, whether to load adata.obsm. All matrix-like objects from there will be added as DimReduc to the output object with names coerced to Seurat style (that is not underscores in the middle, single underscore at the end).
 #' @param assay what assay to put data it (RNA by default)
+#' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
 #'
 #' @return Seurat object
 #' @export
@@ -87,13 +96,13 @@ h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE){
 #' @import Matrix
 #' @examples
 #' seu = h5ad2seurat('adata.h5ad')
-h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA'){
+h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=TRUE){
   loadRequiredPackages('Seurat')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm)
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm,load.X=load.X)
 
   seu = CreateSeuratObject(counts = data$X,assay = assay)
-  seu@meta.data = data$obs
-  seu@assays[[assay]]@meta.features = data$var
+  seu = AddMetaData(seu,data$obs)
+  seu[[assay]] = AddMetaData(seu[[assay]],metadata = data$var)
 
   # reduced dims
   # move spatial to X_spatial (that is Xspatial_ in Seurat) to a) do not interact with Seurat[['spatial_']] b) consistency between adata versions
@@ -117,15 +126,16 @@ h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA'){
 #' @param load.obsm logical, whether to load adata.obsm. All matrix-like objects from there will be added as DimReduc to the output object with names coerced to Seurat style (that is not underscores in the middle, single underscore at the end).
 #' @param simplify logical, whether to merge loaded samples into single object, return list otherwise.
 #' @param img.res which of lowres' or 'hires' image to be loaded
+#' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
 #'
 #' @return list of Seurat object
 #' @import Matrix
 #' @export
 #' @examples
 #' vs = h5ad2seurat_spatial('adata.h5ad')
-h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TRUE,img.res = 'lowres'){
+h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TRUE,img.res = 'lowres',load.X=TRUE){
   loadRequiredPackages('Seurat')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm = TRUE) # load obsm in any case - we need spatial info
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm = TRUE,load.X=load.X) # load obsm in any case - we need spatial info
   images = h5ad2images(filename)
   results = list()
 
@@ -161,8 +171,8 @@ h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TR
     x_spatial_ = data$obsm$X_spatial[f,2:1] # manually discovered that coordinates are transposed
 
     seu = CreateSeuratObject(counts = data$X[,rownames(obs_)], assay = 'Spatial')
-    seu@meta.data = cbind(seu@meta.data,obs_)
-    seu@assays$Spatial@meta.features = data$var
+    seu = AddMetaData(seu,obs_)
+    seu[['Spatial']] = AddMetaData(seu[['Spatial']],data$var)
 
     # add dim reductions (if any)
     if(load.obsm){

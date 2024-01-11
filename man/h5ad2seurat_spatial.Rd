@@ -9,7 +9,8 @@ h5ad2seurat_spatial(
   use.raw = FALSE,
   load.obsm = TRUE,
   simplify = TRUE,
-  img.res = "lowres"
+  img.res = "lowres",
+  load.X = TRUE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ h5ad2seurat_spatial(
 \item{simplify}{logical, whether to merge loaded samples into single object, return list otherwise.}
 
 \item{img.res}{which of lowres' or 'hires' image to be loaded}
+
+\item{load.X}{logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression}
 }
 \value{
 list of Seurat object

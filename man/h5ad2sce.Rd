@@ -4,7 +4,7 @@
 \alias{h5ad2sce}
 \title{Loads h5ad as SingleCellExperiment object}
 \usage{
-h5ad2sce(filename, use.raw = FALSE, load.obsm = TRUE)
+h5ad2sce(filename, use.raw = FALSE, load.obsm = TRUE, load.X = TRUE)
 }
 \arguments{
 \item{filename}{path to h5ad file}
@@ -12,6 +12,8 @@ h5ad2sce(filename, use.raw = FALSE, load.obsm = TRUE)
 \item{use.raw}{logical, whether to attempt to get data from adata.raw. Throws warning (not exception!) if adata.raw is not present and proceeds with adata.X.}
 
 \item{load.obsm}{logical, whether to load adata.obsm. All matrix-like objects from there will be added as reducedDim to the output object.}
+
+\item{load.X}{logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression}
 }
 \value{
 SingleCellExperiment object

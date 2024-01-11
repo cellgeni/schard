@@ -18,6 +18,10 @@ loadRequiredPackages = function(pkgs){
 h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
   collist = rhdf5::h5read(filename,name,read.attributes = TRUE)
   attr = attributes(collist)
+  # sometime vector columns are stored as arrays, it'll cause problems latter on, lets coerse them to vectors
+  for(i in which(sapply(collist,is.array)))
+    collist[[i]] = as.vector(collist[[i]])
+
   # slashes in names leads to nested structure, lets fix it
   ll = sapply(collist,length)
   for(i in which(ll==1)){

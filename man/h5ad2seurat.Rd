@@ -4,7 +4,13 @@
 \alias{h5ad2seurat}
 \title{Loads h5ad as Seurat object}
 \usage{
-h5ad2seurat(filename, use.raw = FALSE, load.obsm = TRUE, assay = "RNA")
+h5ad2seurat(
+  filename,
+  use.raw = FALSE,
+  load.obsm = TRUE,
+  assay = "RNA",
+  load.X = TRUE
+)
 }
 \arguments{
 \item{filename}{path to h5ad file}
@@ -14,6 +20,8 @@ h5ad2seurat(filename, use.raw = FALSE, load.obsm = TRUE, assay = "RNA")
 \item{load.obsm}{logical, whether to load adata.obsm. All matrix-like objects from there will be added as DimReduc to the output object with names coerced to Seurat style (that is not underscores in the middle, single underscore at the end).}
 
 \item{assay}{what assay to put data it (RNA by default)}
+
+\item{load.X}{logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression}
 }
 \value{
 Seurat object
