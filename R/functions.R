@@ -100,7 +100,23 @@ h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=
   loadRequiredPackages('Seurat')
   data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm,load.X=load.X)
 
-  seu = CreateSeuratObject(counts = data$X,assay = assay)
+  # guess whether data is scaled
+  scaled = FALSE
+  # scaled data cannot be sparse (hopefully!)
+  if(is.array(data$X)){
+    n0 = sum(data$X!=0,na.rm=TRUE)
+    density = n0/sum(!is.na(data$X))
+    # if it dense or has no chance to fit into memory
+    scaled = density > 0.8 | n0 > 2^31-1
+  }
+  # if scaled then supply it as data to prevent Seurat making it sparse
+  if(scaled){
+    counts = CreateAssayObject(data = data$X)
+  }else{
+    counts = CreateAssayObject(counts = data$X)
+  }
+
+  seu = CreateSeuratObject(counts = counts,assay = assay)
   seu = AddMetaData(seu,data$obs)
   seu[[assay]] = AddMetaData(seu[[assay]],metadata = data$var)
 
