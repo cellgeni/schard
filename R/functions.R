@@ -194,8 +194,9 @@ h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TR
     if(load.obsm){
       for(n in setdiff(names(data$obsm),'X_spatial')){
         nn = paste0(gsub('_','',n),'_') # Seurat naming requirements
-        obsm_ = data$obsm[[n]][f,]
-        colnames(obsm_) = paste0(nn,1:ncol(obsm_)) # Seurat wants to have colnames
+        obsm_ = data$obsm[[n]][f,,drop=FALSE]
+        if(ncol(obsm_) == 0) next
+        colnames(obsm_) = paste0(rep(nn,ncol(obsm_)),seq_len(ncol(obsm_))) # Seurat wants to have colnames
         rownames(obsm_) = rownames(obs_)
         seu[[nn]] = CreateDimReducObject(embeddings = obsm_, key = nn, assay = 'Spatial')
       }
