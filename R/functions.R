@@ -127,7 +127,7 @@ h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=
   for(n in names(data$obsm)){
     if(ncol(data$obsm[[n]]) == 0) next
     nn = paste0(gsub('_','',n),'_') # Seurat naming requirements
-    colnames(data$obsm[[n]]) = paste0(nn,seq_len((data$obsm[[n]])) # Seurat wants to have colnames
+    colnames(data$obsm[[n]]) = paste0(nn,seq_len((data$obsm[[n]]))) # Seurat wants to have colnames
     rownames(data$obsm[[n]]) = rownames(data$obs)
     seu[[nn]] <- CreateDimReducObject(embeddings = data$obsm[[n]], key = nn, assay = assay)
   }
