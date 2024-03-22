@@ -4,7 +4,13 @@
 \alias{h5ad2list}
 \title{Loads main parts of h5ad file as ordinary R list}
 \usage{
-h5ad2list(filename, use.raw = FALSE, load.obsm = FALSE, load.X = TRUE)
+h5ad2list(
+  filename,
+  use.raw = FALSE,
+  load.obsm = FALSE,
+  load.X = TRUE,
+  forSeurat = FALSE
+)
 }
 \arguments{
 \item{filename}{path to h5ad file}
@@ -12,6 +18,8 @@ h5ad2list(filename, use.raw = FALSE, load.obsm = FALSE, load.X = TRUE)
 \item{load.obsm}{logical, whether to load adata.obsm.}
 
 \item{load.X}{logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression}
+
+\item{forSeurat}{logical, should data be formated to be compatable with Seurat}
 
 \item{load.raw}{logical, whether to load adata.raw.X instead of adata.X}
 }

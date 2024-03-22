@@ -4,6 +4,7 @@
 #' @param load.raw logical, whether to load adata.raw.X instead of adata.X
 #' @param load.obsm logical, whether to load adata.obsm.
 #' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
+#' @param forSeurat logical, should data be formated to be compatable with Seurat
 #'
 #' @return list with following elements:
 #'  obs - data.frame
@@ -11,7 +12,7 @@
 #'  X - matrix (dense or sparse - as it was in X)
 #'  obsm - list of matrices from obsm (presumably reduced dimensions)
 #' @export
-h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE){
+h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeurat=FALSE){
   h5struct = rhdf5::h5ls(filename)
   res = list()
   res$obs = h5ad2data.frame(filename,'obs')
@@ -30,6 +31,10 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE){
     res$X = h5ad2Matrix(filename,expname)
   }else{
     res$X = Matrix::sparseMatrix(i=integer(0),p=0L,x=numeric(0),dims=c(nrow(res$var),nrow(res$obs)))
+  }
+  if(forSeurat){
+    # Seurat for some reasons doesn't like underscores in feature names (don't ask me why)
+    rownames(res$var) = gsub('_','-',rownames(res$var))
   }
   rownames(res$X) = rownames(res$var)
   colnames(res$X) = rownames(res$obs)
@@ -67,7 +72,7 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE){
 #' sce = h5ad2sce('adata.h5ad')
 h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE,load.X=TRUE){
   loadRequiredPackages('SingleCellExperiment')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm=load.obsm,load.X=load.X)
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm=load.obsm,load.X=load.X,,forSeurat=FALSE)
 
   sce = SingleCellExperiment(list(X=data$X),
                              colData=data$obs,
@@ -98,7 +103,7 @@ h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE,load.X=TRUE){
 #' seu = h5ad2seurat('adata.h5ad')
 h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=TRUE){
   loadRequiredPackages('Seurat')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm,load.X=load.X)
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm,load.X=load.X,forSeurat=TRUE)
 
   # guess whether data is scaled
   scaled = FALSE
@@ -152,7 +157,7 @@ h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=
 #' vs = h5ad2seurat_spatial('adata.h5ad')
 h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TRUE,img.res = 'lowres',load.X=TRUE){
   loadRequiredPackages('Seurat')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm = TRUE,load.X=load.X) # load obsm in any case - we need spatial info
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm = TRUE,load.X=load.X,forSeurat=TRUE) # load obsm in any case - we need spatial info
   images = h5ad2images(filename)
   results = list()
 
