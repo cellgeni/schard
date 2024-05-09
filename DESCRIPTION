@@ -18,5 +18,5 @@ Imports:
   Seurat,
   rhdf5
 biocViews: 
-SingleCellExperiment, 
-rhdf5 
+  SingleCellExperiment, 
+  rhdf5 
