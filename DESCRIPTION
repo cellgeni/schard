@@ -17,6 +17,6 @@ Imports:
   SingleCellExperiment,
   Seurat,
   rhdf5
-Remotes:
-  bioc::SingleCellExperiment,rhdf5
-  
+biocViews: 
+SingleCellExperiment, 
+rhdf5 
