@@ -72,7 +72,7 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeu
 #' sce = h5ad2sce('adata.h5ad')
 h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE,load.X=TRUE){
   loadRequiredPackages('SingleCellExperiment')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm=load.obsm,load.X=load.X,,forSeurat=FALSE)
+  data = h5ad2list(filename,use.raw = use.raw,load.obsm=load.obsm,load.X=load.X,forSeurat=FALSE)
 
   sce = SingleCellExperiment(list(X=data$X),
                              colData=data$obs,
