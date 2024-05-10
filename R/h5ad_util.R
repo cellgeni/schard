@@ -1,7 +1,7 @@
 loadRequiredPackages = function(pkgs){
   for(pkg in pkgs){
     if(!require(pkg,character.only =TRUE))
-      stop(paste0('Please install package "',pkg,'"'))
+      stop(paste0('In order to use this functionality please install package "',pkg,'"'))
   }
 }
 
