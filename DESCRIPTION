@@ -7,12 +7,12 @@ Authors@R:
            role = c("aut", "cre"),
            email = "iaa.aka@gmail.com",
            comment = c(ORCID = "0000-0001-9268-3352"))
-Description: What the package does (one paragraph).
+Description: Load scanpy h5ad file into R.
 License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
-Suggest:
+Suggests:
   SingleCellExperiment,
   Seurat
 Imports:
