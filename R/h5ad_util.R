@@ -18,22 +18,32 @@ loadRequiredPackages = function(pkgs){
 h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
   collist = rhdf5::h5read(filename,name,read.attributes = TRUE)
   attr = attributes(collist)
-  # sometime vector columns are stored as arrays, it'll cause problems latter on, lets coerse them to vectors
+
+  # slashes in names may leads to nested structure, lets fix it
+  repeat{
+    ll = sapply(collist,length)
+    # candidates
+    inx_ = which(ll!=max(ll) & names(collist) != '__categories')
+    # remove factors
+    inx = c()
+    for(i in inx_){
+      if(length(collist[[i]]) != 2 | !all(names(collist[[i]]) %in% c("categories","codes")))
+        inx = c(inx,i)
+    }
+    if(length(inx) == 0)
+      break
+    # fix first
+    inx = inx[1]
+    for(i in seq_len(length(collist[[inx]]))){
+      n = paste0(names(collist)[inx],'/',names(collist[[inx]])[i])
+      collist[[n]] = collist[[inx]][[i]]
+    }
+    collist[[inx]] = NULL
+  }
+
+  # sometime vector columns are stored as arrays, it'll cause problems latter on, lets coerce them to vectors
   for(i in which(sapply(collist,is.array)))
     collist[[i]] = as.vector(collist[[i]])
-
-  # slashes in names leads to nested structure, lets fix it
-  ll = sapply(collist,length)
-  for(i in which(ll==1)){
-    n = names(collist)[[i]]
-    repeat{
-      if(length(collist[[i]])>1)
-        break
-      n = paste0(n,'/',names(collist[[i]]))
-      collist[[i]] = collist[[i]][[1]]
-    }
-    names(collist)[i] = n
-  }
 
   # factors are stored as list of categories and names, other types are stored as vectors
   # take them first
