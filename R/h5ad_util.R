@@ -46,24 +46,26 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
     collist[[i]] = as.vector(collist[[i]])
 
   # factors are stored as list of categories and names, other types are stored as vectors
-  # take them first
-  ll = sapply(collist,length)
-  res = as.data.frame(collist[ll==max(ll)],check.names=FALSE)
-
-  # first way to store factors (all levels are in collist[['__categories']])
+    # first way to store factors (all levels are in collist[['__categories']])
   for(fn in names(collist[['__categories']])){
     codes = res[[fn]]+1
     codes[codes==0] = NA
-    res[[fn]] = as.vector(collist[['__categories']][[fn]][codes])
+    collist[[fn]] = as.vector(collist[['__categories']][[fn]][codes])
   }
+  collist[['__categories']] = NULL
+
   # another way to store factors (each factor is 2-item list)
-  for(fn in names(ll)[ll==2 & ll != max(ll)]){
+  for(fn in names(ll)[ll==2]){
     if(all(names(collist[[fn]]) %in% c("categories","codes"))){
       codes = collist[[fn]]$codes+1
       codes[codes==0] = NA
-      res[[fn]] = as.vector(collist[[fn]]$categories[codes])
+      collist[[fn]] = as.vector(collist[[fn]]$categories[codes])
     }
   }
+  ll = sapply(collist,length)
+  if(any(ll != max(ll)))
+    warning("unexpected data.frame format, some columns can be missed")
+  res = as.data.frame(collist[ll==max(ll)],check.names=FALSE)
 
   index.col = NULL
   if('index' %in% colnames(res))
