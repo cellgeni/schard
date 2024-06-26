@@ -48,7 +48,7 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
   # factors are stored as list of categories and names, other types are stored as vectors
     # first way to store factors (all levels are in collist[['__categories']])
   for(fn in names(collist[['__categories']])){
-    codes = res[[fn]]+1
+    codes = collist[[fn]]+1
     codes[codes==0] = NA
     collist[[fn]] = as.vector(collist[['__categories']][[fn]][codes])
   }
