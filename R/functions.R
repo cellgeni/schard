@@ -15,11 +15,10 @@
 h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeurat=FALSE){
   h5struct = rhdf5::h5ls(filename)
   res = list()
-  res$obs = h5ad2data.frame(filename,'obs')
 
   if(use.raw){
     if(!any(h5struct$group=='/raw/X')){
-      stop(paste0('There is not raw slot in "',filename,'" please set "use.raw" to FALSE'))
+      stop(paste0('There is no raw slot in "',filename,'" please set "use.raw" to FALSE'))
     }
     res$var = h5ad2data.frame(filename,'raw/var')
     expname = 'raw/X'
@@ -36,6 +35,9 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeu
     # Seurat for some reasons doesn't like underscores in feature names (don't ask me why)
     rownames(res$var) = gsub('_','-',rownames(res$var))
   }
+  # load obs
+  res$obs = h5ad2data.frame(filename,'obs')
+
   rownames(res$X) = rownames(res$var)
   colnames(res$X) = rownames(res$obs)
 

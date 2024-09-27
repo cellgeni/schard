@@ -99,12 +99,20 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
 #' @examples
 #' obs = h5ad2data.frame('adata.h5ad','X')
 h5ad2Matrix = function(filename,name){
+  if(!startsWith(name,'/'))
+    name = paste0('/',name)
   attr = rhdf5::h5readAttributes(filename,name)
   # load as dataframe if it appers to be a dataframe, but then convert to matrix as the matrix was requested
   if(!is.null(attr$`encoding-type`) && attr$`encoding-type` =='dataframe'){
     mtx = h5ad2data.frame(filename,name,keep.rownames.as.column=FALSE)
     mtx = as.matrix(mtx)
     return(mtx)
+  }
+  # if there is data subgroup then it should be sparse. We can only load sparse if it has less than 2^32-1 values
+  ls = rhdf5::h5ls(filename)
+  nvalues = as.numeric(ls[ls$group==name & ls$name=='data','dim'])
+  if(length(nvalues)==1 & nvalues >= 2^31){
+    stop("The object you are trying to load is too large for Seurat and R in general: it has more than (2^31 -1) non-zero values in expression matrix. Please use python.\n For more information please check:\n 1. https://github.com/cellgeni/schard/issues/1\n 2. https://github.com/chanzuckerberg/cellxgene-census/issues/1095")
   }
   m = rhdf5::h5read(filename,name)
   format = attr$`encoding-type`
