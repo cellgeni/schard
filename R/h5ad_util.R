@@ -111,7 +111,7 @@ h5ad2Matrix = function(filename,name){
   # if there is data subgroup then it should be sparse. We can only load sparse if it has less than 2^32-1 values
   ls = rhdf5::h5ls(filename)
   nvalues = as.numeric(ls[ls$group==name & ls$name=='data','dim'])
-  if(length(nvalues)==1 & nvalues >= 2^31){
+  if(!is.null(nvalues) && length(nvalues)==1 && nvalues >= 2^31){
     stop("The object you are trying to load is too large for Seurat and R in general: it has more than (2^31 -1) non-zero values in expression matrix. Please use python.\n For more information please check:\n 1. https://github.com/cellgeni/schard/issues/1\n 2. https://github.com/chanzuckerberg/cellxgene-census/issues/1095")
   }
   m = rhdf5::h5read(filename,name)
