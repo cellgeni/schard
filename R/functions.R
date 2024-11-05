@@ -225,7 +225,7 @@ h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TR
     scale.factors = images[[lid]]$scale.factors
     # if specified resolution is not in h5ad, try another
     if(!(img.res %in% names(images[[lid]]))){
-      warning(paste0("'",img.res,"' is not avaliable, trying another resolution",))
+      warning(paste0("'",img.res,"' is not avaliable, trying another resolution"))
       img.res = setdiff(c('hires','lowres'),img.res)
     }
     if(!(img.res %in% names(images[[lid]]))){
@@ -241,10 +241,10 @@ h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TR
     # just copied from Seurat::Read10X_Image
     unnormalized.radius = scale.factors$fiducial_diameter_fullres * scale.factors$tissue_lowres_scalef
     spot.radius = unnormalized.radius/max(dim(x = image))
-    image = new(Class = "VisiumV1", image = image, scale.factors = scalefactors(spot = scale.factors$tissue_hires_scalef,
+    image = new(Class = "VisiumV1", image = image, scale.factors = scalefactors(spot = scale.factors$spot_diameter_fullres,
                                                                                 fiducial = scale.factors$fiducial_diameter_fullres,
                                                                                 hires = scale.factors$tissue_hires_scalef,
-                                                                                scale.factors$tissue_lowres_scalef),
+                                                                                lowres = scale.factors$tissue_lowres_scalef),
                 coordinates = tissue.positions, spot.radius = spot.radius)
 
     image = image[Cells(x = seu)]
