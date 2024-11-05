@@ -9,12 +9,11 @@ devtools::install_github("cellgeni/schard")
 ```
 
 # Usage
-Download some public h5ad and load them to R:
+Download some public h5ads from [CZI cellxgene](https://cellxgene.cziscience.com/) or one of [Sanger atlases](https://covid19.cog.sanger.ac.uk/baron16.processed.h5ad) and load them to R:
 ```R
-download.file('https://covid19.cog.sanger.ac.uk/baron16.processed.h5ad','ba16.h5ad') # old data from 2016
-# visium and single nuclei datasets from cziscience: https://cellxgene.cziscience.com/collections/3116d060-0a8e-4767-99bb-e866badea1ed
 download.file('https://datasets.cellxgene.cziscience.com/c5ac5c36-f60c-4680-8018-2d6cb65c0a37.h5ad','vis.heart.h5ad')
 download.file('https://datasets.cellxgene.cziscience.com/8cc521c8-c4ff-4cba-a07b-cae67a9dcba9.h5ad','sn.heart.h5ad')
+download.file('https://covid19.cog.sanger.ac.uk/baron16.processed.h5ad','ba16.h5ad')
 
 # load h5ad as Single Cell Experiment
 ba16.sce = schard::h5ad2sce('ba16.h5ad')
