@@ -62,6 +62,19 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
       collist[[fn]] = as.vector(collist[[fn]]$categories[codes])
     }
   }
+  # yet another way to store factors with names stored in /uns
+  uns_names = rhdf5::h5ls(filename)
+  uns_names = uns_names[uns_names$group=='/uns' & endsWith(uns_names$name,'_categories'),]
+  uns_names$var_name = sub('_categories$','',uns_names$name)
+  uns_names = uns_names[uns_names$var_name %in% names(collist),]
+  for(i in seq_len(nrow(uns_names))){
+    fn = uns_names$var_name[i]
+    cats = rhdf5::h5read(filename,paste0('/uns/',uns_names$name[i]))
+    collist[[fn]] = cats[collist[[fn]]+1]
+  }
+
+
+
   ll = sapply(collist,length)
   if(any(ll != max(ll)))
     warning("unexpected data.frame format, some columns can be missed")
