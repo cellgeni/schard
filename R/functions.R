@@ -232,9 +232,13 @@ h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TR
       stop('No image avaliable in h5ad')
     }
 
+    if (!("tissue_lowres_scalef" %in% names(scale.factors)) & ("tissue_downscaled_fullres_scalef") %in% names(scale.factors)) {
+      scale.factors$tissue_lowres_scalef = scale.factors$tissue_downscaled_fullres_scalef
+    }
     if(img.res == 'hires'){
       scale.factors$tissue_lowres_scalef = scale.factors$tissue_hires_scalef
     }
+
 
     image = images[[lid]][[img.res]]
 
