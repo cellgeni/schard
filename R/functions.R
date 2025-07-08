@@ -232,11 +232,16 @@ h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TR
       stop('No image avaliable in h5ad')
     }
 
-    if(img.res == 'hires'){
-      scale.factors$tissue_lowres_scalef = scale.factors$tissue_hires_scalef
+    if(img.res != 'lowres'){
+      scale.factors$tissue_lowres_scalef = scale.factors[[paste0('tissue_',img.res,'_scalef')]]
     }
 
     image = images[[lid]][[img.res]]
+
+    # lets have something if data is missed
+    # as it is used for unnormalized.radius that is essential for plotting
+    if(is.null(scale.factors$fiducial_diameter_fullres))
+      scale.factors$fiducial_diameter_fullres = scale.factors$spot_diameter_fullres
 
     # just copied from Seurat::Read10X_Image
     unnormalized.radius = scale.factors$fiducial_diameter_fullres * scale.factors$tissue_lowres_scalef

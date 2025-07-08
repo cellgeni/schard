@@ -87,7 +87,7 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
     index.col = attr$`_index`
 
   if(!is.null(index.col))
-    rownames(res) = res[,index.col]
+    rownames(res) = make.unique(res[,index.col])
 
   ord =NULL
   if(!is.null(attr$`column-order`) & all(attr$`column-order` %in% colnames(res))){
