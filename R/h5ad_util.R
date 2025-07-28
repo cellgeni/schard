@@ -161,6 +161,7 @@ h5ad2Matrix = function(filename,name){
 h5ad2images = function(filename){
   h5struct = rhdf5::h5ls(filename)
   library_ids = h5struct$name[h5struct$group=='/uns/spatial']
+  library_ids = setdiff(library_ids,'is_single') # to accommodate for cellxgene schema
   result = list()
 
   for(lid in library_ids){
