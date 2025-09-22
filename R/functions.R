@@ -5,6 +5,7 @@
 #' @param load.obsm logical, whether to load adata.obsm.
 #' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
 #' @param forSeurat logical, should data be formated to be compatable with Seurat
+#' @param use_spam logical, whether to use spam instead of Matrix. Can be used if matrix has more than 2^31 -1 non-zero elements. Keep in mind that spam is not compatible with Seurat
 #'
 #' @return list with following elements:
 #'  obs - data.frame
@@ -12,7 +13,7 @@
 #'  X - matrix (dense or sparse - as it was in X)
 #'  obsm - list of matrices from obsm (presumably reduced dimensions)
 #' @export
-h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeurat=FALSE){
+h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeurat=FALSE,use_spam=FALSE){
   h5struct = rhdf5::h5ls(filename)
   res = list()
 
@@ -30,7 +31,7 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeu
     expname = 'X'
   }
   if(load.X){
-    res$X = h5ad2Matrix(filename,expname)
+    res$X = h5ad2Matrix(filename,expname,use_spam=use_spam)
   }else{
     res$X = Matrix::sparseMatrix(i=integer(0),p=0L,x=numeric(0),dims=c(nrow(res$var),nrow(res$obs)))
   }
@@ -38,9 +39,10 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeu
     # Seurat for some reasons doesn't like underscores in feature names (don't ask me why)
     rownames(res$var) = gsub('_','-',rownames(res$var))
   }
-
-  rownames(res$X) = rownames(res$var)
-  colnames(res$X) = rownames(res$obs)
+  if(!use_spam){
+    rownames(res$X) = rownames(res$var)
+    colnames(res$X) = rownames(res$obs)
+  }
 
   res$obsm = list()
   if(load.obsm){

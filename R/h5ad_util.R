@@ -106,12 +106,13 @@ h5ad2data.frame = function(filename,name,keep.rownames.as.column=TRUE){
 #'
 #' @param filename file name or H5IdComponent to read data.frame from
 #' @param name name of group that contains matrix to be loaded
+#' @param use_spam logical, whether to use spam instead of Matrix. Can be used if matrix has more than 2^31 -1 non-zero elements. Keep in mind that spam is not compatible with Seurat
 #'
 #' @return R matrix, dense or sparse - in dependence on input
 #' @export
 #' @examples
 #' obs = h5ad2data.frame('adata.h5ad','X')
-h5ad2Matrix = function(filename,name){
+h5ad2Matrix = function(filename,name,use_spam = FALSE){
   if(!startsWith(name,'/'))
     name = paste0('/',name)
   attr = rhdf5::h5readAttributes(filename,name)
@@ -121,11 +122,24 @@ h5ad2Matrix = function(filename,name){
     mtx = as.matrix(mtx)
     return(mtx)
   }
-  # if there is data subgroup then it should be sparse. We can only load sparse if it has less than 2^32-1 values
+
   ls = rhdf5::h5ls(filename)
   nvalues = as.numeric(ls[ls$group==name & ls$name=='data','dim'])
+  if(use_spam){
+    require(spam)
+    require(spam64)
+    m = rhdf5::h5read(filename, name,bit64conversion='double')
+
+    mtx=new('spam',entries=as.numeric(m$data),
+             colindices=as.numeric(m$indices) + 1,
+             rowpointers=as.numeric(m$indptr) + 1,
+             dimension=as.numeric(attr$shape))
+    mtx = t(mtx)
+    return(mtx)
+  }
+  # if there is data subgroup then it should be sparse. We can only load sparse if it has less than 2^32-1 values
   if(!is.null(nvalues) && length(nvalues)==1 && nvalues >= 2^31){
-    stop("The object you are trying to load is too large for Seurat and R in general: it has more than (2^31 -1) non-zero values in expression matrix. Please use python.\n For more information please check:\n 1. https://github.com/cellgeni/schard/issues/1\n 2. https://github.com/chanzuckerberg/cellxgene-census/issues/1095")
+    stop("The object you are trying to load is too large for Seurat and R in general: it has more than (2^31 -1) non-zero values in expression matrix. Consider setting use_spam=TRUE or use python.\n For more information please check:\n 1. https://github.com/cellgeni/schard/issues/1\n 2. https://github.com/chanzuckerberg/cellxgene-census/issues/1095")
   }
   m = rhdf5::h5read(filename,name)
   format = attr$`encoding-type`

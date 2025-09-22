@@ -9,7 +9,8 @@ h5ad2list(
   use.raw = FALSE,
   load.obsm = FALSE,
   load.X = TRUE,
-  forSeurat = FALSE
+  forSeurat = FALSE,
+  use_spam = FALSE
 )
 }
 \arguments{
@@ -20,6 +21,8 @@ h5ad2list(
 \item{load.X}{logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression}
 
 \item{forSeurat}{logical, should data be formated to be compatable with Seurat}
+
+\item{use_spam}{logical, whether to use spam instead of Matrix. Can be used if matrix has more than 2^31 -1 non-zero elements. Keep in mind that spam is not compatible with Seurat}
 
 \item{load.raw}{logical, whether to load adata.raw.X instead of adata.X}
 }

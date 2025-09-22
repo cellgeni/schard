@@ -4,12 +4,14 @@
 \alias{h5ad2Matrix}
 \title{Parse matrix from h5ad file}
 \usage{
-h5ad2Matrix(filename, name)
+h5ad2Matrix(filename, name, use_spam = FALSE)
 }
 \arguments{
 \item{filename}{file name or H5IdComponent to read data.frame from}
 
 \item{name}{name of group that contains matrix to be loaded}
+
+\item{use_spam}{logical, whether to use spam instead of Matrix. Can be used if matrix has more than 2^31 -1 non-zero elements. Keep in mind that spam is not compatible with Seurat}
 }
 \value{
 R matrix, dense or sparse - in dependence on input
