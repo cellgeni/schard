@@ -182,7 +182,8 @@ h5ad2images = function(filename){
     result[[lid]] = list()
     result[[lid]]$scale.factors = rhdf5::h5read(filename,paste0('/uns/spatial/',lid,'/scalefactors'))
     for(res in h5struct$name[h5struct$group==paste0('/uns/spatial/',lid,'/images')]){
-      result[[lid]][[res]] = aperm(rhdf5::h5read(filename,paste0('/uns/spatial/',lid,'/images/',res)),3:1)
+      img = rhdf5::h5read(filename,paste0('/uns/spatial/',lid,'/images/',res))
+      result[[lid]][[res]] = aperm(img,rev(seq_len(length(dim(img)))))
       mode(result[[lid]][[res]]) = 'numeric'
       if(max(result[[lid]][[res]])>1)
         result[[lid]][[res]] = result[[lid]][[res]] / 255
