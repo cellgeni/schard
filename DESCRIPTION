@@ -18,5 +18,7 @@ Suggests:
 Imports:
   Matrix,
   rhdf5
+Remotes:
+  bioc::rhdf5
 biocViews: 
   rhdf5 
