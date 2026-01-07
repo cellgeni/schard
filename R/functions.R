@@ -154,14 +154,18 @@ h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=
 #' @param simplify logical, whether to merge loaded samples into single object, return list otherwise.
 #' @param img.res which of lowres' or 'hires' image to be loaded
 #' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
+#' @param image.type which seurat image version to use VisiumV1 or VisiumV2. If NULL it will guess version based on Seurat version: >=5.1 will result in VisiumV2, VisiumV1 otherwise
 #'
 #' @return list of Seurat object
 #' @import Matrix
 #' @export
 #' @examples
 #' vs = h5ad2seurat_spatial('adata.h5ad')
-h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TRUE,img.res = 'lowres',load.X=TRUE){
+h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TRUE,img.res = 'lowres',load.X=TRUE,image.type = NULL){
   loadRequiredPackages('Seurat')
+  if(is.null(image.type)){
+    image.type = ifelse(packageVersion('Seurat') > '5.1','VisiumV2','VisiumV1')
+  }
   data = h5ad2list(filename,use.raw = use.raw,load.obsm = TRUE,load.X=load.X,forSeurat=TRUE) # load obsm in any case - we need spatial info
   images = h5ad2images(filename)
   results = list()
@@ -245,17 +249,32 @@ h5ad2seurat_spatial = function(filename,use.raw=FALSE,load.obsm=TRUE,simplify=TR
     if(is.null(scale.factors$fiducial_diameter_fullres))
       scale.factors$fiducial_diameter_fullres = scale.factors$spot_diameter_fullres
 
-    # just copied from Seurat::Read10X_Image
-    unnormalized.radius = scale.factors$fiducial_diameter_fullres * scale.factors$tissue_lowres_scalef
-    spot.radius = unnormalized.radius/max(dim(x = image))
-    image = new(Class = "VisiumV1", image = image, scale.factors = scalefactors(spot = scale.factors$spot_diameter_fullres,
-                                                                                fiducial = scale.factors$fiducial_diameter_fullres,
-                                                                                hires = scale.factors$tissue_hires_scalef,
-                                                                                lowres = scale.factors$tissue_lowres_scalef),
-                coordinates = tissue.positions, spot.radius = spot.radius)
+    scale.factors = scalefactors(spot = scale.factors$spot_diameter_fullres,
+                                 fiducial = scale.factors$fiducial_diameter_fullres,
+                                 hires = scale.factors$tissue_hires_scalef,
+                                 lowres = scale.factors$tissue_lowres_scalef)
 
-    image = image[Cells(x = seu)]
-    DefaultAssay(object = image) = 'Spatial'
+    if(image.type == "VisiumV1"){
+      # just copied from Seurat::Read10X_Image
+      unnormalized.radius = scale.factors$fiducial * scale.factors$lowres
+      spot.radius = unnormalized.radius/max(dim(x = image))
+
+      image = new(Class = "VisiumV1", image = image, scale.factors = scale.factors,
+                  coordinates = tissue.positions, spot.radius = spot.radius)
+
+      image = image[Cells(x = seu)]
+      DefaultAssay(object = image) = 'Spatial'
+    }else if(image.type == "VisiumV2"){
+      fov = CreateFOV(tissue.positions[, c("imagecol", "imagerow")],
+                       type = "centroids", radius = scale.factors[["spot"]],
+                       assay = 'Spatial', key = lid)
+      image = new(Class = "VisiumV2", boundaries = fov@boundaries,
+                       molecules = fov@molecules, assay = fov@assay, key = fov@key,
+                       image = image, scale.factors = scale.factors, coords_x_orientation = "horizontal")
+    } else{
+      stop(paste0("Unrecognized image.type: '",image.type,"'"))
+    }
+
     seu[[lid]] = image
     results[[lid]] = seu
   }

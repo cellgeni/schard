@@ -10,7 +10,8 @@ h5ad2seurat_spatial(
   load.obsm = TRUE,
   simplify = TRUE,
   img.res = "lowres",
-  load.X = TRUE
+  load.X = TRUE,
+  image.type = NULL
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ h5ad2seurat_spatial(
 \item{img.res}{which of lowres' or 'hires' image to be loaded}
 
 \item{load.X}{logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression}
+
+\item{image.type}{which seurat image version to use VisiumV1 or VisiumV2. If NULL it will guess version based on Seurat version: >=5.1 will result in VisiumV2, VisiumV1 otherwise}
 }
 \value{
 list of Seurat object
