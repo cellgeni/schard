@@ -119,6 +119,8 @@ h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=
     # if it dense or has no chance to fit into memory
     scaled = density > 0.8 | n0 > 2^31-1
   }
+  # in case of error: https://github.com/satijalab/seurat/issues/5904
+  data$X <- data$X[rownames(data$X) != '',]
   # if scaled then supply it as data to prevent Seurat making it sparse
   if(scaled){
     counts = CreateAssayObject(data = data$X)
