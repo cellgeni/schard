@@ -38,6 +38,9 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeu
   if(forSeurat){
     # Seurat for some reasons doesn't like underscores in feature names (don't ask me why)
     rownames(res$var) = gsub('_','-',rownames(res$var))
+    # and it also hates when names are empty
+    empty_inxs = which(rownames(res$var) == '')
+    rownames(res$var)[empty_inxs] = paste0(rep('unnamed_gene_',length(empty_inxs)),empty_inxs)
   }
   if(!use_spam){
     rownames(res$X) = rownames(res$var)
