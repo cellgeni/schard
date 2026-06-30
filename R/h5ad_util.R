@@ -176,6 +176,18 @@ h5ad2Matrix = function(filename,name,use_spam = FALSE){
   mtx
 }
 
+# internal: resolve a layers= source to its HDF5 path
+#   'X' -> adata.X, 'raw.X' -> adata.raw.X, anything else -> that entry of adata.layers
+.h5ad_source_path = function(src) if(src == 'X') 'X' else if(src == 'raw.X') 'raw/X' else paste0('layers/',src)
+
+# internal: coerce feature names to a Seurat-friendly form (no underscores, no empty names)
+.seurat_feature_names = function(x){
+  x = gsub('_','-',x)
+  empty = which(x == '')
+  x[empty] = paste0('unnamed_gene_',empty)
+  x
+}
+
 
 
 #' Load visium images from h5ad
