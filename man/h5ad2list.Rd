@@ -10,7 +10,8 @@ h5ad2list(
   load.obsm = FALSE,
   load.X = TRUE,
   forSeurat = FALSE,
-  use_spam = FALSE
+  use_spam = FALSE,
+  layers = NULL
 )
 }
 \arguments{
@@ -24,6 +25,8 @@ h5ad2list(
 
 \item{use_spam}{logical, whether to use spam instead of Matrix. Can be used if matrix has more than 2^31 -1 non-zero elements. Keep in mind that spam is not compatible with Seurat}
 
+\item{layers}{character vector of extra matrices to load into \code{res$layers}. Each entry is either the name of an entry in adata.layers, or the literal 'X' (adata.X) or 'raw.X' (adata.raw.X). NULL (default) loads none.}
+
 \item{load.raw}{logical, whether to load adata.raw.X instead of adata.X}
 }
 \value{
@@ -32,6 +35,7 @@ obs - data.frame
 var - data.frame
 X - matrix (dense or sparse - as it was in X)
 obsm - list of matrices from obsm (presumably reduced dimensions)
+layers - named list of matrices requested via \code{layers} (empty list if none)
 }
 \description{
 Loads main parts of h5ad file as ordinary R list

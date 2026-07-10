@@ -9,7 +9,8 @@ h5ad2seurat(
   use.raw = FALSE,
   load.obsm = TRUE,
   assay = "RNA",
-  load.X = TRUE
+  load.X = TRUE,
+  layers = NULL
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ h5ad2seurat(
 \item{assay}{what assay to put data it (RNA by default)}
 
 \item{load.X}{logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression}
+
+\item{layers}{optional named character vector routing h5ad matrices into Seurat assay slots. Names must be slots ('counts', 'data' and/or 'scale.data') and 'counts' is required; values name the source matrix: an entry of adata.layers, or the literal 'X' (adata.X) or 'raw.X' (adata.raw.X). When supplied, \code{use.raw} is ignored (use 'raw.X' as a source instead). NULL (default) keeps the original behaviour (adata.X -> counts).}
 }
 \value{
 Seurat object
@@ -31,4 +34,6 @@ For non-spatial data only, use h5ad2seurat_spatial for Visium
 }
 \examples{
 seu = h5ad2seurat('adata.h5ad')
+seu = h5ad2seurat('adata.h5ad',layers=c(counts='counts',data='X'))
+seu = h5ad2seurat('adata.h5ad',layers=c(counts='raw.X',data='X'))
 }

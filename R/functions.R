@@ -6,14 +6,16 @@
 #' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
 #' @param forSeurat logical, should data be formated to be compatable with Seurat
 #' @param use_spam logical, whether to use spam instead of Matrix. Can be used if matrix has more than 2^31 -1 non-zero elements. Keep in mind that spam is not compatible with Seurat
+#' @param layers character vector of extra matrices to load into `res$layers`. Each entry is either the name of an entry in adata.layers, or the literal 'X' (adata.X) or 'raw.X' (adata.raw.X). NULL (default) loads none.
 #'
 #' @return list with following elements:
 #'  obs - data.frame
 #'  var - data.frame
 #'  X - matrix (dense or sparse - as it was in X)
 #'  obsm - list of matrices from obsm (presumably reduced dimensions)
+#'  layers - named list of matrices requested via `layers` (empty list if none)
 #' @export
-h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeurat=FALSE,use_spam=FALSE){
+h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeurat=FALSE,use_spam=FALSE,layers=NULL){
   h5struct = rhdf5::h5ls(filename)
   res = list()
 
@@ -37,10 +39,8 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeu
   }
   if(forSeurat){
     # Seurat for some reasons doesn't like underscores in feature names (don't ask me why)
-    rownames(res$var) = gsub('_','-',rownames(res$var))
     # and it also hates when names are empty
-    empty_inxs = which(rownames(res$var) == '')
-    rownames(res$var)[empty_inxs] = paste0(rep('unnamed_gene_',length(empty_inxs)),empty_inxs)
+    rownames(res$var) = .seurat_feature_names(rownames(res$var))
   }
   if(!use_spam){
     rownames(res$X) = rownames(res$var)
@@ -58,6 +58,45 @@ h5ad2list = function(filename,use.raw=FALSE,load.obsm=FALSE,load.X = TRUE,forSeu
       }
     }
   }
+
+  # optionally load extra matrices (adata.layers entries, or 'X'/'raw.X') into res$layers
+  res$layers = list()
+  if(length(layers)){
+    layers = unique(layers)
+    avail = h5struct$name[h5struct$group=='/layers']
+    for(src in layers){
+      if(src == 'X'){
+        # adata.X is always available
+      }else if(src == 'raw.X'){
+        if(!any(h5struct$group=='/raw/X'))
+          stop(paste0('layers source "raw.X" requested but there is no adata.raw in "',filename,'"'))
+      }else if(!(src %in% avail)){
+        stop(paste0('layer "',src,'" not found in "',filename,'" (available: ',paste(avail,collapse=', '),')'))
+      }
+    }
+    # feature names for adata.X-shaped sources (adata.X and every adata.layers entry share adata.var)
+    xrn = rownames(if(use.raw) h5ad2data.frame(filename,'var') else res$var)
+    if(forSeurat && use.raw) xrn = .seurat_feature_names(xrn) # res$var is already cleaned when !use.raw
+    for(src in layers){
+      if(src == 'X' && load.X && !use.raw){
+        res$layers[[src]] = res$X # reuse the already-loaded adata.X
+        next
+      }
+      m = h5ad2Matrix(filename,.h5ad_source_path(src),use_spam=use_spam)
+      if(!use_spam){
+        if(src == 'raw.X'){
+          vrn = rownames(h5ad2data.frame(filename,'raw/var'))
+          if(forSeurat) vrn = .seurat_feature_names(vrn)
+          rownames(m) = vrn
+        }else{
+          rownames(m) = xrn
+        }
+        colnames(m) = rownames(res$obs)
+      }
+      res$layers[[src]] = m
+    }
+  }
+
   res
 }
 
@@ -102,6 +141,7 @@ h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE,load.X=TRUE){
 #' @param load.obsm logical, whether to load adata.obsm. All matrix-like objects from there will be added as DimReduc to the output object with names coerced to Seurat style (that is not underscores in the middle, single underscore at the end).
 #' @param assay what assay to put data it (RNA by default)
 #' @param load.X logical, whether to load expression. Set all expressions to zeroes if FALSE. It can be much faster not to load expression
+#' @param layers optional named character vector routing h5ad matrices into Seurat assay slots. Names must be slots ('counts', 'data' and/or 'scale.data') and 'counts' is required; values name the source matrix: an entry of adata.layers, or the literal 'X' (adata.X) or 'raw.X' (adata.raw.X). When supplied, `use.raw` is ignored (use 'raw.X' as a source instead). NULL (default) keeps the original behaviour (adata.X -> counts).
 #'
 #' @return Seurat object
 #' @export
@@ -109,29 +149,59 @@ h5ad2sce = function(filename,use.raw=FALSE,load.obsm=TRUE,load.X=TRUE){
 #' @import Matrix
 #' @examples
 #' seu = h5ad2seurat('adata.h5ad')
-h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=TRUE){
+#' seu = h5ad2seurat('adata.h5ad',layers=c(counts='counts',data='X'))
+#' seu = h5ad2seurat('adata.h5ad',layers=c(counts='raw.X',data='X'))
+h5ad2seurat = function(filename,use.raw=FALSE,load.obsm=TRUE,assay='RNA',load.X=TRUE,layers=NULL){
   loadRequiredPackages('Seurat')
-  data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm,load.X=load.X,forSeurat=TRUE)
 
-  # guess whether data is scaled
+  if(is.null(layers)){
+    # original behaviour: adata.X (or adata.raw.X when use.raw) -> counts slot
+    data = h5ad2list(filename,use.raw = use.raw,load.obsm = load.obsm,load.X = load.X,forSeurat=TRUE)
+    counts.mat = data$X
+    cvar = data$var
+  }else{
+    # the layers mapping drives everything; use.raw is ignored (use 'raw.X' as a source instead)
+    valid.slots = c('counts','data','scale.data')
+    if(is.null(names(layers)) || any(!nzchar(names(layers))) || any(!names(layers) %in% valid.slots))
+      stop('`layers` must be a named character vector with names in {',paste(valid.slots,collapse=', '),'}')
+    if(!('counts' %in% names(layers)))
+      stop('`layers` must map the "counts" slot, e.g. layers=c(counts="counts")')
+    # let h5ad2list load (and validate the existence of) every requested source into data$layers
+    data = h5ad2list(filename,use.raw = FALSE,load.obsm = load.obsm,load.X = FALSE,
+                     forSeurat = TRUE,layers = unname(layers))
+    counts.mat = data$layers[[layers[['counts']]]]
+    # feature metadata matching the counts source (adata.raw.X carries adata.raw.var)
+    cvar = if(layers[['counts']] == 'raw.X') h5ad2data.frame(filename,'raw/var') else data$var
+    rownames(cvar) = rownames(counts.mat)
+  }
+
+  # build the counts assay, guessing whether the matrix is already scaled (dense)
   scaled = FALSE
   # scaled data cannot be sparse (hopefully!)
-  if(is.array(data$X)){
-    n0 = sum(data$X!=0,na.rm=TRUE)
-    density = n0/sum(!is.na(data$X))
+  if(is.array(counts.mat)){
+    n0 = sum(counts.mat!=0,na.rm=TRUE)
+    density = n0/sum(!is.na(counts.mat))
     # if it dense or has no chance to fit into memory
     scaled = density > 0.8 | n0 > 2^31-1
   }
   # if scaled then supply it as data to prevent Seurat making it sparse
   if(scaled){
-    counts = CreateAssayObject(data = data$X)
+    counts = CreateAssayObject(data = counts.mat)
   }else{
-    counts = CreateAssayObject(counts = data$X)
+    counts = CreateAssayObject(counts = counts.mat)
   }
 
   seu = CreateSeuratObject(counts = counts,assay = assay)
   seu = AddMetaData(seu,data$obs)
-  seu[[assay]] = AddMetaData(seu[[assay]],metadata = data$var)
+  seu[[assay]] = AddMetaData(seu[[assay]],metadata = cvar)
+
+  # additional data / scale.data slots (only when requested via layers=)
+  if(!is.null(layers)){
+    for(slot in c('data','scale.data')){
+      if(slot %in% names(layers))
+        seu = SetAssayData(seu,layer = slot,new.data = data$layers[[layers[[slot]]]],assay = assay)
+    }
+  }
 
   # reduced dims
   # move spatial to X_spatial (that is Xspatial_ in Seurat) to a) do not interact with Seurat[['spatial_']] b) consistency between adata versions
